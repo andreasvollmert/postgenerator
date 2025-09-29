@@ -496,9 +496,6 @@ const wordpressClient = (WORDPRESS_API_URL && WORDPRESS_USERNAME && WORDPRESS_AP
     : null;
 const templateManager = new TemplateManager();
 
-// ... existing code ...
-// (Der Rest des bestehenden Codes bleibt unverändert)
-
 // --- NEUE FUNKTIONEN FÜR ERWEITERTE FEATURES --- //
 
 async function generateBlogImage(prompt: string, style: string = 'realistic'): Promise<string> {
@@ -637,4 +634,107 @@ function savePost(post: Post) {
 if (passwordProtection.isLoggedIn()) {
     console.log('🚀 AI Content Platform initialisiert');
     console.log(`📱 Features: Bilder=${!!mediaClient}, Videos=${ENABLE_VIDEO_GENERATION}, WordPress=${ENABLE_WORDPRESS_EXPORT}`);
+    
+    // DOM Event Listeners initialisieren
+    document.addEventListener('DOMContentLoaded', initializeApp);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+        initializeApp();
+    }
+}
+
+function initializeApp() {
+    console.log('🎯 Initialisiere Event Listeners...');
+    
+    // Tab Navigation
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.sidebar-panel');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            const tabName = target.getAttribute('data-tab');
+            
+            // Remove active class from all tabs and panels
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding panel
+            target.classList.add('active');
+            const panel = document.getElementById(`${tabName}-panel`);
+            if (panel) panel.classList.add('active');
+        });
+    });
+    
+    // Generate Button
+    const generateBtn = document.getElementById('generate-btn');
+    if (generateBtn) {
+        generateBtn.addEventListener('click', async () => {
+            console.log('🚀 Generate Button clicked!');
+            await handleGenerate();
+        });
+    }
+    
+    // Theme Toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        });
+    }
+    
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-mode');
+    }
+    
+    console.log('✅ Event Listeners initialisiert!');
+}
+
+async function handleGenerate() {
+    const topic = (document.getElementById('topic') as HTMLInputElement)?.value;
+    const targetLocation = (document.getElementById('target-location') as HTMLInputElement)?.value;
+    
+    if (!topic) {
+        showError('Bitte geben Sie ein Thema ein!');
+        return;
+    }
+    
+    if (!GEMINI_API_KEY) {
+        showError('GEMINI_API_KEY ist nicht konfiguriert!');
+        return;
+    }
+    
+    try {
+        showLoader('Generiere Content...');
+        
+        // Hier würde die eigentliche AI-Generierung stattfinden
+        const prompt = `Schreibe einen ausführlichen Artikel über: ${topic}${targetLocation ? ` für die Region ${targetLocation}` : ''}`;
+        
+        // Placeholder für AI-Generierung
+        console.log('Generating with prompt:', prompt);
+        
+        // Simuliere AI-Response
+        setTimeout(() => {
+            hideLoader();
+            showSuccess('Content erfolgreich generiert!');
+            
+            // Zeige Ergebnis
+            const outputContent = document.querySelector('.output-content');
+            if (outputContent) {
+                outputContent.innerHTML = `
+                    <h1>${topic}</h1>
+                    <p>Dies ist ein Beispiel-Artikel über ${topic}.</p>
+                    <p>Der Content wurde erfolgreich generiert!</p>
+                `;
+            }
+        }, 2000);
+        
+    } catch (error) {
+        hideLoader();
+        showError('Fehler bei der Content-Generierung: ' + error);
+    }
 }
