@@ -9,6 +9,8 @@ import DOMPurify from 'dompurify';
 // @ts-ignore
 import TurndownService from 'turndown';
 
+// ENTFERNEN SIE ALLE mp3-Referenzen falls vorhanden
+
 // --- KONFIGURATION FÜR API-WECHSEL --- //
 const USE_OPENROUTER = process.env.USE_OPENROUTER === 'true';
 const ENABLE_VIDEO_GENERATION = process.env.ENABLE_VIDEO_GENERATION === 'true';
@@ -631,12 +633,12 @@ function savePost(post: Post) {
 }
 
 // Stelle sicher, dass die App nur lädt wenn authentifiziert
+// Am Ende der Datei - ersetzen Sie:
 if (passwordProtection.isLoggedIn()) {
     console.log('🚀 AI Content Platform initialisiert');
     console.log(`📱 Features: Bilder=${!!mediaClient}, Videos=${ENABLE_VIDEO_GENERATION}, WordPress=${ENABLE_WORDPRESS_EXPORT}`);
     
-    // DOM Event Listeners initialisieren
-    document.addEventListener('DOMContentLoaded', initializeApp);
+    // DOM Event Listeners initialisieren - KORRIGIERT
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initializeApp);
     } else {
@@ -645,53 +647,77 @@ if (passwordProtection.isLoggedIn()) {
 }
 
 function initializeApp() {
-    console.log('🎯 Initialisiere Event Listeners...');
-    
-    // Tab Navigation
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const panels = document.querySelectorAll('.sidebar-panel');
-    
-    tabButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
-            const target = e.target as HTMLElement;
-            const tabName = target.getAttribute('data-tab');
-            
-            // Remove active class from all tabs and panels
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            panels.forEach(panel => panel.classList.remove('active'));
-            
-            // Add active class to clicked tab and corresponding panel
-            target.classList.add('active');
-            const panel = document.getElementById(`${tabName}-panel`);
-            if (panel) panel.classList.add('active');
+    try {
+        console.log('🎯 Initialisiere Event Listeners...');
+        
+        // Generate Button - SICHER
+        const generateBtn = document.getElementById('generate-btn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', handleGenerate);
+            console.log('✅ Generate Button Event Listener hinzugefügt');
+        } else {
+            console.error('❌ Generate Button nicht gefunden!');
+        }
+        
+        // Tab Navigation - SICHER
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const target = e.target as HTMLElement;
+                const tabName = target.getAttribute('data-tab');
+                
+                // Remove active class
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.sidebar-panel').forEach(panel => panel.classList.remove('active'));
+                
+                // Add active class
+                target.classList.add('active');
+                const panel = document.getElementById(`${tabName}-panel`);
+                if (panel) panel.classList.add('active');
+            });
         });
+        
+        console.log('✅ Event Listeners erfolgreich initialisiert!');
+    } catch (error) {
+        console.error('❌ Fehler bei Event Listener Initialisierung:', error);
+    }
+}
+
+async function handleGenerate() {
+    try {
+        console.log('🚀 Generate Button clicked!');
+        
+        const topic = (document.getElementById('topic') as HTMLInputElement)?.value;
+        if (!topic) {
+            alert('Bitte geben Sie ein Thema ein!');
+            return;
+        }
+        
+        alert(`Generiere Content für: ${topic}`);
+        console.log('Content wird generiert für:', topic);
+        
+    } catch (error) {
+        console.error('❌ Fehler bei handleGenerate:', error);
+        alert('Fehler bei der Content-Generierung!');
+    }
+}
+
+// Theme Toggle
+const themeToggle = document.getElementById('theme-toggle');
+if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('light-mode');
+        localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
     });
-    
-    // Generate Button
-    const generateBtn = document.getElementById('generate-btn');
-    if (generateBtn) {
-        generateBtn.addEventListener('click', async () => {
-            console.log('🚀 Generate Button clicked!');
-            await handleGenerate();
-        });
-    }
-    
-    // Theme Toggle
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        themeToggle.addEventListener('click', () => {
-            document.body.classList.toggle('light-mode');
-            localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-        });
-    }
-    
-    // Load saved theme
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-        document.body.classList.add('light-mode');
-    }
-    
-    console.log('✅ Event Listeners initialisiert!');
+}
+
+// Load saved theme
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+}
+
+console.log('✅ Event Listeners initialisiert!');
 }
 
 async function handleGenerate() {
