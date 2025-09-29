@@ -88,9 +88,11 @@
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const password = document.getElementById('password').value;
-            const correctPassword = 'your_secure_password_123'; // Aus Environment Variable
+            const correctPassword = 'ContentPlatform2024!'; // Korrigiertes Passwort
             
             if (password === correctPassword) {
+                // Cookie setzen für Netlify Redirects
+                document.cookie = 'authenticated=true; path=/; max-age=86400';
                 sessionStorage.setItem('authenticated', 'true');
                 window.location.href = '/';
             } else {
