@@ -1,0 +1,57 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Build-Einstellungen für verschiedene Umgebungen
+[context.production]
+  command = "npm run build"
+  
+[context.branch-deploy]
+  command = "npm run build"
+
+[context.dev]
+  command = "npm run dev"
+
+# Redirects für kostenlosen Passwort-Schutz
+[[redirects]]
+  from = "/"
+  to = "/login.html"
+  status = 200
+  
+[[redirects]]
+  from = "/app"
+  to = "/index.html"
+  status = 200
+  condition = "Cookie=authenticated,true"
+
+[[redirects]]
+  from = "/app"
+  to = "/login.html"
+  status = 302
+
+[[redirects]]
+  from = "/*"
+  to = "/login.html"
+  status = 200
+
+# Security Headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Environment Variables (in Netlify Dashboard setzen)
+# SITE_PASSWORD = IhrGewünschtesPasswort
+# GEMINI_API_KEY = IhrGeminiAPIKey
+# OPENROUTER_API_KEY  
+# WORDPRESS_API_URL
+# WORDPRESS_USERNAME
+# WORDPRESS_APP_PASSWORD
+# NANO_BANANA_API_KEY
+# SITE_PASSWORD

@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Article Writer & Keyword Tool</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-color: #0d1117;
+            --surface-color: #161b22;
+            --surface-light-color: #1c222b;
+            --primary-color: #58a6ff;
+            --primary-hover-color: #79c0ff;
+            --text-color: #c9d1d9;
+            --text-color-strong: #ffffff;
+            --text-muted-color: #8b949e;
+            --border-color: #30363d;
+            --success-color: #4caf50;
+            --error-color: #f44336;
+            --font-family: 'Inter', sans-serif;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        
+        body.light-mode {
+            --bg-color: #f6f8fa;
+            --surface-color: #ffffff;
+            --surface-light-color: #f6f8fa;
+            --primary-color: #0969da;
+            --primary-hover-color: #2c83df;
+            --text-color: #24292f;
+            --text-color-strong: #1a1e22;
+            --text-muted-color: #57606a;
+            --border-color: #d0d7de;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: background-color 0.3s, color 0.3s;
+            overflow: hidden;
+        }
+        
+        body.logged-out #user-controls { display: none; }
+        body.logged-in #guest-controls { display: none; }
+
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0;
+            margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0);
+            white-space: nowrap; border-width: 0;
+        }
+        
+        .app-container { display: flex; height: 100vh; overflow: hidden; }
+
+        /* --- Header & Auth --- */
+        .header-controls { display: flex; align-items: center; gap: 0.75rem; }
+        #guest-controls, #user-controls { display: flex; align-items: center; gap: 0.75rem; }
+        #user-info { display: flex; align-items: center; gap: 1rem; background-color: var(--surface-light-color); padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border-color); }
+        #user-credits { font-weight: 600; color: var(--primary-color); }
+        #user-email { font-size: 0.9rem; color: var(--text-muted-color); }
+        
+        .theme-switcher { display: flex; align-items: center; }
+        #theme-toggle { background: none; border: none; cursor: pointer; color: var(--text-muted-color); padding: 0.5rem; border-radius: 6px; }
+        #theme-toggle:hover { color: var(--text-color); background-color: var(--surface-light-color); }
+        #theme-toggle .icon-sun, body.light-mode #theme-toggle .icon-moon { display: none; }
+        body.light-mode #theme-toggle .icon-sun { display: block; }
+        
+        /* --- Input Screen --- */
+        #input-screen { display: flex; flex-direction: column; width: 100%; height: 100%; }
+        .input-header {
+            padding: 1rem 2rem; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0;
+        }
+        .input-header h1 { font-size: 1.5rem; }
+        
+        .input-content-wrapper { flex-grow: 1; overflow-y: auto; padding: 2rem; }
+        .sidebar-tabs { display: flex; margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; padding: 4px; max-width: 850px; }
+        .tab-btn { flex: 1; padding: 0.5rem; background: transparent; border: none; color: var(--text-muted-color); font-weight: 500; cursor: pointer; transition: background-color 0.2s, color 0.2s; border-radius: 6px; font-size: 0.9rem; }
+        .tab-btn.active { background-color: var(--primary-color); color: #fff; }
+        .tab-btn:disabled { color: var(--border-color); cursor: not-allowed; position: relative; }
+        .tab-btn:disabled::after {
+            content: 'Pro';
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            background-color: #ff9800;
+            color: black;
+            font-size: 9px;
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .sidebar-panel { display: none; flex-direction: column; gap: 1rem; max-width: 900px; margin: 0 auto;}
+        .sidebar-panel.active { display: flex; }
+        
+        .writer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @media (max-width: 900px) {
+            .writer-grid { grid-template-columns: 1fr; }
+        }
+
+        .input-card { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; box-shadow: var(--shadow-sm); }
+        .input-card h2 { font-size: 1.1rem; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); }
+        
+        .input-footer {
+            padding: 1rem 2rem; border-top: 1px solid var(--border-color);
+            background-color: var(--surface-color); flex-shrink: 0; text-align: right;
+        }
+        #analyze-btn { font-size: 1.1rem; padding: 0.8rem 2rem; }
+
+
+        /* --- Output Screen --- */
+        #output-screen { display: none; width: 100%; height: 100%; flex-direction: column; }
+        .output-header {
+            padding: 1rem 2rem; border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; gap: 1rem; flex-shrink: 0;
+        }
+        #back-btn { background: none; border: 1px solid var(--border-color); color: var(--text-color); font-weight: 500; padding: 0.5rem 1rem; }
+        #back-btn:hover { background-color: var(--surface-light-color); border-color: var(--text-muted-color); }
+        .output-header h2 { font-size: 1.2rem; }
+        .output-content { flex-grow: 1; overflow-y: auto; padding: 2rem; }
+        
+        
+        /* --- General Components --- */
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-group label { display: block; font-weight: 500; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-color); }
+        .form-group small { display: block; color: var(--text-muted-color); font-size: 0.8rem; margin-top: 0.35rem; }
+        .label-with-help { display: flex; justify-content: space-between; align-items: center; }
+        
+        input[type="text"], input[type="email"], input[type="url"], input[type="password"], input[type="number"], select, textarea {
+            width: 100%; padding: 0.65rem 0.75rem; border-radius: 6px;
+            border: 1px solid var(--border-color); background-color: var(--bg-color);
+            color: var(--text-color); font-size: 0.9rem; transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, input[type="url"]:focus, input[type="password"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+            outline: none; border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+        }
+        select:disabled, textarea:disabled, input:disabled { opacity: 0.5; cursor: not-allowed; background-color: var(--surface-light-color); }
+        textarea { resize: vertical; min-height: 80px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        
+        .toggle-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+        .toggle-group label { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--text-color); margin-bottom: 0; }
+        .switch { position: relative; display: inline-block; width: 38px; height: 22px; }
+        .switch input { display: none; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 22px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary-color); }
+        input:checked + .slider:before { transform: translateX(16px); }
+
+        button {
+            padding: 0.7rem 1.2rem; border: none; border-radius: 6px;
+            background-color: var(--primary-color); color: #fff;
+            font-size: 0.9rem; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s; display: inline-flex;
+            align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        button:hover:not(:disabled) { background-color: var(--primary-hover-color); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        button.btn-secondary { background-color: var(--surface-light-color); border: 1px solid var(--border-color); color: var(--text-color); }
+        button.btn-secondary:hover:not(:disabled) { background-color: var(--border-color); }
+        button.btn-small { padding: 0.5rem 1rem; font-size: 0.8rem; }
+        button.btn-link { background: none; color: var(--primary-color); padding: 0; text-decoration: none; font-size: 0.85rem; font-weight: 500; }
+        button.btn-link:hover { text-decoration: underline; }
+
+        #placeholder, #loader, #error {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; height: 100%; color: var(--text-muted-color); padding: 2rem;
+        }
+        #placeholder h2 { font-size: 1.5rem; color: var(--text-color); margin-bottom: 0.5rem; }
+        .loader-spinner {
+            border: 4px solid var(--border-color); border-top: 4px solid var(--primary-color);
+            border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 1rem;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #error { color: var(--error-color); display: none; }
+        #error h2 { color: var(--text-color-strong); margin-bottom: 0.5rem; }
+        #error p { color: var(--text-color); font-size: 1rem; }
+        #error-details { color: var(--text-muted-color); }
+        #error-details h4 { color: var(--text-color); margin-top: 1rem; margin-bottom: 0.5rem; }
+        #error-details pre { background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; white-space: pre-wrap; word-wrap: break-word; font-size: 0.85rem; }
+        
+        #keyword-research-results, #strategy-results-view { display: none; }
+        .results-table-container { max-height: calc(100vh - 250px); overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; }
+        .results-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .results-table thead { position: sticky; top: 0; background-color: var(--surface-light-color); z-index: 1; }
+        .results-table th, .results-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        .results-table th { font-weight: 600; color: var(--text-muted-color); }
+        .results-table tbody tr:hover { background-color: var(--surface-light-color); }
+        .results-table tbody tr:last-child td { border-bottom: none; }
+        .results-table th:first-child, .results-table td:first-child { padding-left: 1.5rem; }
+        .results-table th:last-child, .results-table td:last-child { padding-right: 1.5rem; }
+        .keyword-cell { color: var(--primary-hover-color); cursor: pointer; font-weight: 500; }
+        .keyword-cell:hover { text-decoration: underline; }
+        .difficulty-bar-container { width: 80px; height: 8px; background-color: var(--border-color); border-radius: 4px; display: inline-block; margin-right: 0.5rem; }
+        .difficulty-bar { height: 100%; border-radius: 4px; }
+        .results-table td svg { vertical-align: middle; }
+        
+        .view-title { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .strategy-results-header { display: flex; flex-direction: column; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; background-color: var(--surface-color); padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; }
+        .strategy-results-header-main { display: flex; justify-content: space-between; align-items: center; width: 100%;}
+        .strategy-results-header .btn-group { display: flex; gap: 1rem; }
+        .strategy-pillar-section { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; }
+        .strategy-pillar-section summary { padding: 1rem 1.5rem; font-size: 1.2rem; font-weight: 600; cursor: pointer; list-style-position: inside; }
+        .strategy-pillar-section[open] summary { border-bottom: 1px solid var(--border-color); }
+        .strategy-pillar-section .results-table-container { max-height: 400px; }
+        
+        #step-2 { display: none; gap: 2rem; flex-direction: column; }
+        .step-2-section { background-color: var(--surface-color); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); }
+        .step-2-section h3 { display: block; font-weight: 600; margin-bottom: 1rem; font-size: 1.1rem; }
+        .options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+        .options-grid label, #outline-options label, #keyword-options label {
+            display: block; background-color: var(--bg-color); padding: 0.75rem;
+            border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;
+        }
+        .options-grid label:hover { border-color: var(--primary-color); }
+        .options-grid input[type="radio"], #outline-options input[type="checkbox"], #keyword-options input[type="checkbox"] { margin-right: 0.5rem; }
+        #outline-options, #keyword-options { display: flex; flex-direction: column; gap: 0.5rem; }
+        .source-list { list-style-type: none; padding: 0; max-height: 200px; overflow-y: auto; }
+        .source-list li a { color: var(--primary-color); text-decoration: none; }
+        .source-list li a:hover { text-decoration: underline; }
+
+        #editor-view { display: none; gap: 2rem; }
+        .editor-column { flex-grow: 1; min-width: 0; }
+        .actions-column { width: 350px; flex-shrink: 0; }
+        #preview-image {
+            width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px;
+            margin-bottom: 1.5rem; background-color: var(--border-color);
+        }
+        .editor-toolbar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+        
+        /* --- Rich Text Editor Styling --- */
+        #content-editor {
+            height: calc(100vh - 260px);
+            min-height: 400px;
+            width: 100%;
+            padding: 1.5rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--surface-color);
+            color: var(--text-color);
+            font-size: 16px;
+            line-height: 1.7;
+            overflow-y: auto;
+            white-space: pre-wrap; /* Allows wrapping */
+            word-wrap: break-word;
+        }
+        #content-editor:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+        }
+        #content-editor h1, #content-editor h2, #content-editor h3, #content-editor h4 {
+            line-height: 1.3;
+            margin-top: 1.5em;
+            margin-bottom: 1em;
+            font-weight: 600;
+            color: var(--text-color-strong);
+        }
+        #content-editor h2 { font-size: 1.75em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+        #content-editor h3 { font-size: 1.4em; }
+        #content-editor h4 { font-size: 1.2em; }
+        #content-editor p { margin-bottom: 1.2em; }
+        #content-editor ul, #content-editor ol { padding-left: 2em; margin-bottom: 1.2em; }
+        #content-editor li { margin-bottom: 0.5em; }
+        #content-editor a { color: var(--primary-color); text-decoration: none; }
+        #content-editor a:hover { text-decoration: underline; }
+        #content-editor strong { font-weight: 600; color: var(--text-color-strong); }
+        #content-editor blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 1.5em;
+            margin-left: 0;
+            margin-bottom: 1.2em;
+            font-style: italic;
+            color: var(--text-muted-color);
+        }
+         #content-editor code {
+            background-color: var(--bg-color);
+            padding: 0.2em 0.4em;
+            font-size: 85%;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+
+        .action-card {
+            background-color: var(--surface-color); padding: 1.5rem; border-radius: 8px;
+            border: 1px solid var(--border-color); margin-bottom: 1.5rem;
+        }
+        .action-card h3 { margin-bottom: 1rem; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; }
+        .action-card .form-group label { font-size: 0.85rem; }
+        .action-buttons { display: flex; flex-direction: column; gap: 0.75rem; }
+        .action-buttons .btn-group { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .action-buttons .btn-group button { flex-grow: 1; }
+        .seo-item { margin-bottom: 1rem; }
+        .seo-item h4 {
+            font-size: 0.9rem; color: var(--text-muted-color); margin-bottom: 0.25rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .seo-item-content { background-color: var(--bg-color); padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; word-break: break-all; }
+        .permalink-input-wrapper { display: flex; align-items: center; gap: 0.5rem; }
+        .permalink-input-wrapper input { flex-grow: 1; min-width: 0; }
+        #regenerate-permalink-btn { padding: 0.5rem; line-height: 0; }
+        .copy-btn { background: none; border: none; color: var(--text-muted-color); cursor: pointer; padding: 0.2rem; position: relative; }
+        .copy-btn:hover { color: var(--primary-color); }
+        .tooltip-text {
+            visibility: hidden; width: 120px; background-color: #333; color: #fff;
+            text-align: center; border-radius: 6px; padding: 5px 0;
+            position: absolute; z-index: 1; bottom: 125%; left: 50%;
+            margin-left: -60px; opacity: 0; transition: opacity 0.3s;
+        }
+        #fact-check-result { margin-top: 1rem; padding: 1rem; background-color: var(--bg-color); border-radius: 6px; font-size: 0.9rem; min-height: 50px; }
+        #wp-connection-status.success, #sheet-connection-status.success { color: var(--success-color); }
+        #sheet-connection-status.error {
+            color: var(--error-color);
+            word-break: break-word;
+            background-color: rgba(244, 67, 54, 0.1);
+            border: 1px solid var(--error-color);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+        #sheet-connection-status.error ul {
+            margin-top: 0.75rem;
+            padding-left: 1.5rem;
+            text-align: left;
+            line-height: 1.5;
+        }
+        #sheet-connection-status.error li { margin-bottom: 0.5rem; }
+        #sheet-connection-status.error code { background-color: var(--border-color); padding: 0.1rem 0.3rem; border-radius: 4px; }
+        .password-wrapper { position: relative; display: flex; align-items: center; }
+        #wp-show-password { position: absolute; right: 10px; }
+        .input-with-button { display: flex; align-items: center; gap: 0.5rem; }
+        .input-with-button input, .input-with-button select { flex-grow: 1; }
+
+        .small-checkbox-label {
+            display: flex;
+            align-items: center;
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: var(--text-muted-color);
+            cursor: pointer;
+        }
+        .small-checkbox-label input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+
+        .seo-score-container { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        #seo-score-circle {
+            width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; font-weight: 700; color: white; flex-shrink: 0;
+            transition: background-color 0.3s, border-color 0.3s; border: 4px solid;
+        }
+        #seo-score-text { font-size: 0.9rem; line-height: 1.4; color: var(--text-muted-color); }
+        .seo-score-container p { margin: 0; }
+        .score-bad { background-color: rgba(244, 67, 54, 0.2); border-color: var(--error-color); }
+        .score-ok { background-color: rgba(255, 152, 0, 0.2); border-color: #ff9800; }
+        .score-good { background-color: rgba(76, 175, 80, 0.2); border-color: var(--success-color); }
+        body.light-mode .score-bad, body.light-mode .score-ok, body.light-mode .score-good { color: var(--text-color); }
+        
+        .seo-checklist {
+            list-style: none;
+            padding: 0;
+            margin: 1.5rem 0 1rem;
+        }
+        .seo-checklist li {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            transition: color 0.3s, opacity 0.3s;
+            opacity: 0.7;
+        }
+        .seo-checklist li:last-child {
+            border-bottom: none;
+        }
+        .seo-checklist li::before {
+            content: '○';
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+            margin-right: 0.75rem;
+            font-weight: bold;
+            color: var(--text-muted-color);
+            transition: content 0.3s, color 0.3s;
+        }
+        .seo-checklist li.pass {
+            color: var(--text-color);
+            opacity: 1;
+        }
+        .seo-checklist li.pass::before {
+            content: '✓';
+            color: var(--success-color);
+        }
+        .seo-checklist li.fail::before {
+            content: '✗';
+            color: var(--error-color);
+        }
+        .keyword-density-details {
+            margin-top: 1.5rem;
+        }
+        .keyword-density-details summary {
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-muted-color);
+            list-style-position: inside;
+        }
+
+        .keyword-density-section h4 { margin-bottom: 0.75rem; font-size: 0.9rem; color: var(--text-muted-color); border-top: 1px solid var(--border-color); padding-top: 1rem; }
+        .keyword-density-item, .keyword-density-list li { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color); }
+        .keyword-density-list { list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto; }
+        .keyword-density-item:last-child, .keyword-density-list li:last-child { border-bottom: none; }
+        .keyword-density-item .keyword, .keyword-density-list .keyword { max-width: 80%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .keyword-density-item .count, .keyword-density-list .count { font-weight: 600; background-color: var(--bg-color); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem; }
+        
+        .template-controls { display: flex; gap: 1rem; align-items: center; }
+        .template-controls select, .template-controls input { flex-grow: 1; }
+
+
+        #result { position: absolute; left: -9999px; top: -9999px; width: 800px; padding: 2rem; background-color: #fff; color: #111; }
+        #result img { max-width: 100%; height: auto; }
+        #result h1 { font-size: 2em; margin-bottom: 1em;}
+        #result h2 { font-size: 1.5em; margin-top: 1em; margin-bottom: 0.5em;}
+        #result p { line-height: 1.6; margin-bottom: 1em; }
+        #result ul { padding-left: 20px; }
+        #result blockquote { border-left: 4px solid #ccc; padding-left: 1rem; margin-left: 0; margin-bottom: 1rem; font-style: italic; color: #555; }
+        #result table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.9rem; background-color: #f8f8f8; }
+        #result th, #result td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        #result th { background-color: #e8e8e8; }
+        
+        /* Collapsible Section styles are removed as they are no longer used in the writer panel */
+        details.strategy-pillar-section { border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background-color: var(--surface-color); }
+        details.strategy-pillar-section summary { font-weight: 600; cursor: pointer; padding: 1rem 1.5rem; color: var(--text-color); list-style: revert; font-size: 1.2rem; }
+        details.strategy-pillar-section summary:hover { background-color: var(--surface-light-color); }
+        details.strategy-pillar-section[open] summary { border-bottom: 1px solid var(--border-color); }
+        details.action-card summary { font-weight: 600; cursor: pointer; list-style: revert; font-size: 1.1rem; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7); display: none; /* Hidden by default */
+            align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-content {
+            background-color: var(--surface-color); color: var(--text-color);
+            border-radius: 8px; border: 1px solid var(--border-color);
+            width: 90%; max-width: 800px;
+            max-height: 90vh; display: flex; flex-direction: column;
+            box-shadow: var(--shadow-md);
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color);
+        }
+        .modal-header h2 { font-size: 1.2rem; }
+        .modal-header button {
+            background: none; border: none; font-size: 2rem; line-height: 1;
+            color: var(--text-muted-color); cursor: pointer; padding: 0;
+        }
+        .modal-header button:hover { color: var(--text-color); }
+        .modal-body {
+            padding: 1.5rem; overflow-y: auto;
+        }
+        .modal-footer {
+            padding: 1rem 1.5rem; border-top: 1px solid var(--border-color);
+            text-align: right;
+        }
+        .modal-body p, .modal-body ol { margin-bottom: 1rem; line-height: 1.5; }
+        .modal-body ol { padding-left: 20px; }
+        .modal-body li { margin-bottom: 0.5rem; }
+        .modal-body strong { color: var(--primary-hover-color); }
+        .modal-body pre {
+            background-color: var(--bg-color); border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 1rem; white-space: pre-wrap;
+            word-wrap: break-word; font-size: 0.85rem; max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        /* Pricing Modal */
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+        .pricing-card {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .pricing-card.highlight {
+            border-color: var(--primary-color);
+            border-width: 2px;
+            transform: scale(1.02);
+        }
+        .pricing-card h3 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .pricing-card .price { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .pricing-card .price span { font-size: 1rem; font-weight: 400; color: var(--text-muted-color); }
+        .pricing-card .description { color: var(--text-muted-color); margin-bottom: 1.5rem; min-height: 40px; }
+        .pricing-card ul { list-style: none; margin-bottom: 2rem; flex-grow: 1; }
+        .pricing-card li { margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .pricing-card li svg { color: var(--success-color); flex-shrink: 0; }
+        .pricing-card button { width: 100%; margin-top: auto; }
+
+
+        .error-troubleshooting {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        .error-troubleshooting h4 {
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            color: var(--text-color-strong);
+        }
+        .troubleshooting-case {
+            margin-bottom: 1rem;
+            padding-left: 1rem;
+            border-left: 2px solid var(--border-color);
+        }
+        .troubleshooting-case p {
+            margin-bottom: 0.25rem;
+        }
+        .troubleshooting-case p:first-child {
+            font-weight: 600;
+        }
+
+        /* --- Archive & Layout Styles --- */
+        #archive-panel h2, #layouts-panel h2 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+        .archive-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1rem; }
+        .archive-item {
+            background-color: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 1rem; display: flex;
+            align-items: center; gap: 1rem; transition: border-color 0.2s;
+        }
+        .archive-item-content {
+            flex-grow: 1; min-width: 0; cursor: pointer;
+        }
+        .archive-item-content:hover .archive-item-title {
+            color: var(--primary-hover-color);
+        }
+        .archive-item-thumbnail {
+            width: 80px; height: 45px; object-fit: cover;
+            border-radius: 4px; background-color: var(--border-color);
+            flex-shrink: 0;
+        }
+        .archive-item-icon {
+            width: 80px; height: 45px;
+            display: flex; align-items: center; justify-content: center;
+            background-color: var(--border-color);
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .archive-item-icon svg {
+            width: 24px; height: 24px;
+            color: var(--text-muted-color);
+        }
+        .archive-item-info { flex-grow: 1; min-width: 0; }
+        .archive-item-title {
+            font-weight: 600; color: var(--text-color-strong); transition: color 0.2s;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.25rem;
+        }
+        .archive-item-meta { font-size: 0.8rem; color: var(--text-muted-color); }
+        .archive-item-actions { display: flex; gap: 0.5rem; }
+        .archive-item-actions button { padding: 0.5rem; line-height: 0; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "jspdf": "https://esm.sh/jspdf@^3.0.1",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="light-mode">
+
+    <div class="app-container">
+        
+        <div id="input-screen">
+            <header class="input-header">
+                <h1>Content AI Suite</h1>
+                <div class="header-controls">
+                    <div id="guest-controls">
+                        <button id="pricing-btn" class="btn-secondary">Preise</button>
+                        <button id="login-btn" class="btn-secondary">Login</button>
+                        <button id="signup-btn">Registrieren</button>
+                    </div>
+                    <div id="user-controls">
+                        <div id="user-info">
+                            <span id="user-credits" title="Verbleibende Credits"></span>
+                            <span id="user-email"></span>
+                        </div>
+                        <button id="account-btn" class="btn-secondary">Konto</button>
+                        <button id="logout-btn" class="btn-secondary">Logout</button>
+                    </div>
+                    <div class="theme-switcher">
+                        <button id="theme-toggle" title="Modus wechseln">
+                            <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/></svg>
+                            <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            <div class="input-content-wrapper">
+                 <div class="sidebar-tabs">
+                    <button class="tab-btn active" data-tab="writer">Article Writer</button>
+                    <button class="tab-btn" data-tab="research">Keyword Research</button>
+                    <button class="tab-btn" data-tab="planner">Content Strategy</button>
+                    <button class="tab-btn" data-tab="video" data-pro-feature="true">Video</button>
+                    <button class="tab-btn" data-tab="archive">Archiv</button>
+                    <button class="tab-btn" data-tab="layouts">Layouts</button>
+                </div>
+
+                <div id="writer-panel" class="sidebar-panel active">
+                    <div class="writer-grid">
+                        <div class="input-card">
+                            <h2>Thema & Zielgruppe</h2>
+                            <div class="form-group">
+                                <label for="topic">Thema oder Hauptkeyword</label>
+                                <input type="text" id="topic" placeholder="z.B. Was ist das EUDI-Wallet?">
+                            </div>
+                            <div class="form-group">
+                                <label for="target-location">Ziel-Standort (optional)</label>
+                                <input type="text" id="target-location" placeholder="z.B. Limburg an der Lahn">
+                            </div>
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label for="language">Sprache</label>
+                                    <select id="language">
+                                        <option value="Deutsch">Deutsch</option>
+                                        <option value="Englisch (US)">Englisch (US)</option>
+                                        <option value="Englisch (UK)">Englisch (UK)</option>
+                                        <option value="Französisch">Französisch</option>
+                                        <option value="Spanisch">Spanisch</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="length">Länge</label>
+                                    <select id="length">
+                                        <option value="ca. 500 Wörter">Kurz (~500)</option>
+                                        <option value="ca. 1000 Wörter" selected>Standard (~1000)</option>
+                                        <option value="ca. 1500 Wörter">Lang (~1500)</option>
+                                        <option value="über 2000 Wörter" data-pro-feature="true">Ausführlich (2000+)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="input-card">
+                            <h2>Vorlagen-Management</h2>
+                             <div class="form-group">
+                                <label for="template-select">Gespeicherte Vorlagen laden</label>
+                                <div class="template-controls">
+                                    <select id="template-select">
+                                        <option value="__default__">Standardeinstellungen</option>
+                                    </select>
+                                    <button id="delete-template-btn" class="btn-secondary" title="Vorlage löschen" disabled>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="template-name">Aktuelle Einstellungen als Vorlage speichern</label>
+                                <div class="input-with-button">
+                                    <input type="text" id="template-name" placeholder="Name für neue Vorlage">
+                                    <button id="save-template-btn">Speichern</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="input-card">
+                            <h2>Inhalts-Elemente</h2>
+                            <div class="toggle-group">
+                               <label for="include-image"><span>Titelbild</span><span class="switch"><input type="checkbox" id="include-image" checked><span class="slider"></span></span></label>
+                               <label for="table-of-contents"><span>Inhaltsverzeichnis</span><span class="switch"><input type="checkbox" id="table-of-contents"><span class="slider"></span></span></label>
+                               <label for="key-takeaways"><span>Wichtige Erkenntnisse</span><span class="switch"><input type="checkbox" id="key-takeaways" checked><span class="slider"></span></span></label>
+                               <label for="include-faq"><span>FAQ-Sektion</span><span class="switch"><input type="checkbox" id="include-faq"><span class="slider"></span></span></label>
+                               <label for="external-links"><span>Externe Links</span><span class="switch"><input type="checkbox" id="external-links"><span class="slider"></span></span></label>
+                               <label for="realtime-knowledge"><span>Echtzeit-Wissen</span><span class="switch"><input type="checkbox" id="realtime-knowledge"><span class="slider"></span></span></label>
+                               <label for="include-schema"><span>Strukturierte Daten</span><span class="switch"><input type="checkbox" id="include-schema" checked><span class="slider"></span></span></label>
+                           </div>
+                        </div>
+
+                        <div class="input-card">
+                            <h2>Stil & Ton</h2>
+                            <div class="form-group">
+                                <label for="primary-keyword">Primäres Keyword (optional)</label>
+                                <input type="text" id="primary-keyword" placeholder="Wichtigstes Keyword für SEO">
+                            </div>
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label for="point-of-view">Perspektive</label>
+                                    <select id="point-of-view"><option value="Default">Default</option><option value="Ich">Ich</option><option value="Wir">Wir</option></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="tone">Tonfall</label>
+                                    <select id="tone"><option value="Professionell" selected>Professionell</option><option value="Locker">Locker</option><option value="Humorvoll">Humorvoll</option><option value="Technisch">Technisch</option></select>
+                                </div>
+                            </div>
+                             <div class="form-group">
+                                <label for="writing-style">Schreibstil / Framework</label>
+                                <select id="writing-style"><option value="Standard">Standard</option><option value="AIDA">AIDA</option><option value="PAS">PAS (Problem-Agitate-Solve)</option><option value="Storytelling">Storytelling</option><option value="Expert">Experten-Analyse</option></select>
+                            </div>
+                             <div class="form-group">
+                                <label for="structure">Struktur</label>
+                                <select id="structure">
+                                    <option value="Standard-Blogbeitrag (Einleitung, Hauptteil, Fazit)" selected>Standard Blogbeitrag</option>
+                                    <option value="Listen-Artikel (Listicle)">Listen-Artikel (Listicle)</option>
+                                    <option value="Anleitung / Tutorial">Anleitung / Tutorial</option>
+                                    <option value="Vergleichsartikel">Vergleichsartikel</option>
+                                    <option value="Fallstudie (Case Study)">Fallstudie (Case Study)</option>
+                                    <option value="Interview-Format">Interview-Format</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="input-card">
+                            <h2>Autoren-Profil (E-E-A-T)</h2>
+                            <div class="form-group">
+                                <label for="author-name">Name/Persona des Autors</label>
+                                <input type="text" id="author-name" placeholder="z.B. Dr. med. Klaus Müller">
+                            </div>
+                            <div class="form-group">
+                                <label for="author-expertise">Expertise & Erfahrung</label>
+                                <textarea id="author-expertise" rows="3" placeholder="z.B. Facharzt für Orthopädie mit 15 Jahren Erfahrung..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="author-qualifications">Qualifikationen</label>
+                                <textarea id="author-qualifications" rows="2" placeholder="z.B. Verfasser von Fachartikeln, Mitglied im Berufsverband..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="input-card">
+                            <h2>Erweiterte Optimierung</h2>
+                            <div class="form-group">
+                                <label for="geo-goal">GEO Ziel (Generative Engine Optimization)</label>
+                                <select id="geo-goal"><option value="standard" selected>Standard SEO</option><option value="sge">Für SGE optimieren (Direkte Antworten)</option><option value="experience">Persönliche Erfahrung betonen (E-E-A-T)</option><option value="thought-leadership">Thought Leadership (Neue Perspektiven)</option></select>
+                                <small>Steuern Sie, wie der Inhalt für moderne, KI-basierte Suchmaschinen optimiert wird.</small>
+                            </div>
+                             <div class="grid-2">
+                               <div class="form-group">
+                                    <label for="humanize-content">Inhalt vermenschlichen</label>
+                                    <select id="humanize-content"><option value="Nein" selected>Nein</option><option value="Ja">Ja</option></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="humanize-intensity">Intensität</label>
+                                    <select id="humanize-intensity" disabled><option value="Normal">Normal</option><option value="Stark">Stark</option></select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="style-transfer">Stil-Übernahme (optional)</label>
+                                <textarea id="style-transfer" placeholder="Fügen Sie hier einen Referenztext ein, um dessen Stil, Ton und Struktur zu übernehmen."></textarea>
+                            </div>
+                            <div class="form-group" style="margin-top: 1rem; margin-bottom: 0;">
+                                <label for="export-layout-select">HTML/PDF Export-Layout</label>
+                                <select id="export-layout-select"></select>
+                            </div>
+                        </div>
+
+                        <div class="input-card">
+                            <h2>Bild-Einstellungen</h2>
+                            <div class="form-group">
+                                <label for="image-prompt">Bild-Prompt (optional)</label>
+                                <input type="text" id="image-prompt" placeholder="Motiv für das Titelbild">
+                            </div>
+                            <div class="form-group">
+                                <label for="image-style">Bild-Stil</label>
+                                <select id="image-style">
+                                    <option value="Fotorealistisch" selected>Fotorealistisch</option>
+                                    <option value="Digitale Kunst">Digitale Kunst</option>
+                                    <option value="Minimalistisch">Minimalistisch</option>
+                                    <option value="3D-Render">3D-Render</option>
+                                    <option value="Aquarell">Aquarell</option>
+                                    <option value="Cyberpunk">Cyberpunk</option>
+                                    <option value="Pixel Art">Pixel Art</option>
+                                    <option value="Strichzeichnung">Strichzeichnung</option>
+                                    <option value="Vintage-Poster">Vintage-Poster</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="input-card">
+                             <h2>Zusätzliche Anweisungen</h2>
+                            <div class="form-group">
+                                <label for="prompt-snippets-select">Prompt-Schnipsel</label>
+                                <div class="input-with-button">
+                                    <select id="prompt-snippets-select"></select>
+                                    <button id="insert-snippet-btn" class="btn-secondary">Einfügen</button>
+                                </div>
+                                <small>Wählen Sie eine vordefinierte Anweisung aus, um sie schnell zum Textfeld hinzuzufügen.</small>
+                            </div>
+                            <div class="form-group">
+                                <textarea id="instructions" placeholder="z.B. 'Der Artikel soll sich an Anfänger richten...' oder 'Verwende keine Floskeln.'"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="research-panel" class="sidebar-panel">
+                    <div class="input-card" style="max-width: 500px;">
+                        <h2>Keyword Research</h2>
+                        <div class="form-group"><label for="seed-keyword">Seed-Keyword</label><input type="text" id="seed-keyword" placeholder="z.B. E-Auto laden"></div>
+                        <div class="form-group"><label for="research-language">Sprache / Region</label><select id="research-language"><option value="Deutsch (Deutschland)">Deutsch (DE)</option><option value="Deutsch (Österreich)">Deutsch (AT)</option><option value="Deutsch (Schweiz)">Deutsch (CH)</option><option value="Englisch (USA)">Englisch (US)</option><option value="Englisch (UK)">Englisch (UK)</option></select></div>
+                        <button id="research-btn">Keywords finden</button>
+                    </div>
+                </div>
+            
+                <div id="planner-panel" class="sidebar-panel">
+                     <div class="input-card" style="max-width: 500px;">
+                        <h2>Content Strategy Generator</h2>
+                        <div class="form-group"><label for="pillar-topic">Haupt-Nische / Thema</label><input type="text" id="pillar-topic" placeholder="z.B. Psychotherapie bei Angststörungen in Limburg"></div>
+                        <div class="form-group"><label for="subtopics-count">Sub-Themen pro Pillar</label><input type="number" id="subtopics-count" value="10" min="3" max="20"></div>
+                        <button id="generate-strategy-btn">Strategie entwickeln</button>
+                    </div>
+                </div>
+
+                <div id="video-panel" class="sidebar-panel">
+                    <div class="input-card" style="max-width: 500px;">
+                        <h2>Video Generation (Veo)</h2>
+                        <p style="color: var(--text-muted-color); margin-bottom: 1.5rem;">Erstellen Sie kurze Videos aus einer Textbeschreibung oder einem Bild. Die Generierung kann einige Minuten dauern.</p>
+                        <div class="form-group">
+                            <label for="video-prompt">Prompt</label>
+                            <textarea id="video-prompt" rows="4" placeholder="z.B. Ein neonfarbenes Hologramm einer Katze, die mit Höchstgeschwindigkeit fährt"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="video-image-input">Startbild (optional)</label>
+                            <input type="file" id="video-image-input" accept="image/*" style="padding: 0.5rem; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; width: 100%;">
+                            <img id="video-image-preview" src="" alt="Image preview" style="max-width: 100%; border-radius: 8px; margin-top: 1rem; display: none;">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="archive-panel" class="sidebar-panel">
+                    <!-- Content is generated by JS -->
+                </div>
+
+                <div id="layouts-panel" class="sidebar-panel">
+                    <h2>HTML Export-Layouts</h2>
+                    <p style="color: var(--text-muted-color); margin-bottom: 1.5rem;">Verwalten Sie Vorlagen für den HTML- und PDF-Export. Verwenden Sie Platzhalter wie <code>{{TITLE}}</code> und <code>{{ARTICLE_HTML}}</code>.</p>
+                    <div style="margin-bottom: 1.5rem;">
+                        <button id="add-layout-btn">Neues Layout hinzufügen</button>
+                    </div>
+                    <div id="layout-list" class="archive-list"></div>
+                </div>
+            </div>
+            <footer class="input-footer">
+                <button id="analyze-btn">1. Analyse & Gliederung</button>
+                <button id="generate-video-btn" style="display: none;">Video generieren</button>
+            </footer>
+        </div>
+
+        <div id="output-screen">
+            <header class="output-header">
+                <button id="back-btn" class="btn-secondary">&larr; Zurück zu den Einstellungen</button>
+                <h2 id="output-title">Ergebnisse</h2>
+            </header>
+            <main class="output-content">
+                <div id="placeholder">
+                    <h2>Willkommen bei der Content AI Suite</h2>
+                    <p>Geben Sie links ein Thema ein, um einen neuen Artikel zu erstellen.</p>
+                </div>
+                <div id="loader" style="display: none;">
+                    <div class="loader-spinner"></div>
+                    <p id="loader-message">Analysiere Top-Suchergebnisse...</p>
+                </div>
+                <div id="error" style="display: none;">
+                    <h2>Fehler</h2>
+                    <p id="error-message">Etwas ist schiefgelaufen.</p>
+                    <div id="error-details" style="margin-top: 1.5rem; text-align: left; max-width: 600px; width: 100%; line-height: 1.6;"></div>
+                </div>
+
+                <div id="keyword-research-results">
+                    <h2>Keyword-Recherche</h2>
+                    <div class="results-table-container"><table class="results-table"><thead><tr><th>Keyword</th><th>Volumen</th><th>Schwierigkeit</th><th>Trending</th><th>CPC (USD)</th></tr></thead><tbody></tbody></table></div>
+                </div>
+                <div id="strategy-results-view"></div>
+                <div id="video-results-view" style="display: none;">
+                    <h2 class="view-title">Generiertes Video</h2>
+                    <div id="video-player-container"></div>
+                </div>
+
+                <div id="step-2">
+                    <div class="step-2-section"><h3><label for="title-options">1. Wähle einen Titel</label></h3><div id="title-options" class="options-grid"></div></div>
+                    <div class="step-2-section"><h3><label for="outline-options">2. Passe die Gliederung an</label></h3><div id="outline-options"></div></div>
+                    <div class="step-2-section"><h3><label for="keyword-options">3. Wähle sekundäre Keywords</label></h3><div id="keyword-options"></div></div>
+                    <div class="step-2-section" style="display: none;"><h3>Analysierte Quellen</h3><div id="source-links"></div></div>
+                    <div class="btn-group" style="display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button id="show-prompt-btn" class="btn-secondary">Prompt anzeigen</button>
+                        <button id="generate-btn">2. Beitrag generieren</button>
+                    </div>
+                </div>
+
+                <div id="editor-view">
+                    <div class="editor-column">
+                        <img id="preview-image" src="" alt="Vorschau des Titelbilds">
+                        <div class="editor-toolbar">
+                            <button id="auto-optimize-btn" class="btn-secondary btn-small"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.5 2.5 0 0 0 1.84 1.84l1.937.645c.33.11.33.576 0 .686l-1.937.645a2.5 2.5 0 0 0-1.84 1.84l-.645 1.937c-.11.33-.576-.33-.686 0l-.645-1.937a2.5 2.5 0 0 0-1.84-1.84l-1.937-.645c-.33-.11-.33.576 0 .686l1.937.645a2.5 2.5 0 0 0 1.84-1.84zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.58 5.48l-.387 1.162a.217.217 0 0 1-.412 0L3.4 5.48a1.73 1.73 0 0 0-1.097-1.097l-1.162-.387a.217.217 0 0 1 0 .412l1.162.387A1.73 1.73 0 0 0 3.4 1.528zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0 .274l.774.258c.346-.115.617-.386.732-.732z"/></svg>Auto-Optimieren</button>
+                        </div>
+                        <div id="content-editor" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Artikel-Editor"></div>
+                    </div>
+                    <div class="actions-column">
+                        <div id="live-seo-analysis" class="action-card" style="display: none;">
+                            <h3>Live SEO-Analyse</h3>
+                            <div class="seo-score-container">
+                                <div id="seo-score-circle" class="score-bad"><span id="seo-score-value">0%</span></div>
+                                <p id="seo-score-text">Die Analyse wird aktualisiert, während Sie tippen.</p>
+                            </div>
+                            <ul id="seo-checklist" class="seo-checklist">
+                                <li id="check-title">Keyword im Titel</li>
+                                <li id="check-headings">Keyword in Überschriften</li>
+                                <li id="check-density">Keyword-Dichte</li>
+                                <li id="check-lsi">LSI Keywords</li>
+                                <li id="check-length">Artikellänge</li>
+                            </ul>
+                            <details class="keyword-density-details">
+                                <summary>Details zur Keyword-Dichte</summary>
+                                <div class="keyword-density-section">
+                                    <h4>Hauptkeyword</h4>
+                                    <div id="primary-keyword-density" class="keyword-density-item"></div>
+                                    <h4>Nebenkeywords</h4>
+                                    <ul id="secondary-keyword-density" class="keyword-density-list"></ul>
+                                </div>
+                            </details>
+                        </div>
+                        <div class="action-card">
+                            <h3>Speichern & Aktionen</h3>
+                            <input type="hidden" id="current-post-id">
+                            <div class="action-buttons">
+                                <div class="btn-group">
+                                    <button id="update-post-btn" style="display: none;">Änderungen speichern</button>
+                                    <button id="save-post-btn" class="btn-secondary">Als Neu Speichern</button>
+                                </div>
+                                <hr style="border-color: var(--border-color); margin: 0.5rem 0;">
+                                <div class="btn-group">
+                                    <button id="copy-gutenberg-btn" class="btn-secondary">Gutenberg<span class="tooltip-text" id="copy-gutenberg-tooltip" style="width: 160px; margin-left: -80px;">Für Gutenberg kopiert!</span></button>
+                                    <button id="download-md-btn" class="btn-secondary">.md</button>
+                                    <button id="download-html-btn" class="btn-secondary">.html</button>
+                                    <button id="download-pdf-btn" class="btn-secondary">.pdf</button>
+                                    <button id="download-img-btn" class="btn-secondary">.jpg</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="seo-section" class="action-card" style="display: none;">
+                            <h3>SEO-Vorschläge</h3>
+                            <div class="seo-item"><h4>Meta-Titel <button id="copy-meta-title-btn" class="copy-btn" title="Kopieren"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zM-1 8a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/></svg><span class="tooltip-text" id="copy-meta-title-tooltip">Kopiert!</span></button></h4><div id="result-meta-title" class="seo-item-content"></div></div>
+                            <div class="seo-item">
+                                <h4>Permalink <button id="copy-permalink-btn" class="copy-btn" title="Kopieren"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zM-1 8a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/></svg><span class="tooltip-text" id="copy-permalink-tooltip">Kopiert!</span></button></h4>
+                                <div class="permalink-input-wrapper">
+                                    <input type="text" id="result-permalink-input">
+                                    <button id="regenerate-permalink-btn" class="btn-secondary" title="Permalink aus Meta-Titel neu generieren">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+                                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="seo-item"><h4>Meta-Beschreibung <button id="copy-meta-btn" class="copy-btn" title="Kopieren"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zM-1 8a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/></svg><span class="tooltip-text" id="copy-meta-tooltip">Kopiert!</span></button></h4><div id="result-meta-desc" class="seo-item-content"></div></div>
+                            <div class="seo-item"><h4>Bild Alt-Text <button id="copy-alt-btn" class="copy-btn" title="Kopieren"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zM-1 8a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/></svg><span class="tooltip-text" id="copy-alt-tooltip">Kopiert!</span></button></h4><div id="result-alt-text" class="seo-item-content"></div></div>
+                        </div>
+                        <div id="schema-section" class="action-card" style="display: none;"><h3>Schema Markup (JSON-LD) <button id="copy-schema-btn" class="copy-btn" title="Kopieren"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zM-1 8a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/></svg><span class="tooltip-text" id="copy-schema-tooltip">Kopiert!</span></button></h3><textarea id="result-schema-markup" rows="5" readonly></textarea></div>
+                        <div id="regenerate-image-card" class="action-card" style="display: none;">
+                            <h3>Bild neu generieren</h3>
+                            <div class="form-group"><label for="regenerate-image-prompt">Prompt</label><textarea id="regenerate-image-prompt" rows="3"></textarea></div>
+                            <div class="form-group"><label for="regenerate-image-style">Stil</label>
+                                <select id="regenerate-image-style">
+                                    <option value="Fotorealistisch" selected>Fotorealistisch</option>
+                                    <option value="Digitale Kunst">Digitale Kunst</option>
+                                    <option value="Minimalistisch">Minimalistisch</option>
+                                    <option value="3D-Render">3D-Render</option>
+                                    <option value="Aquarell">Aquarell</option>
+                                    <option value="Cyberpunk">Cyberpunk</option>
+                                    <option value="Pixel Art">Pixel Art</option>
+                                    <option value="Strichzeichnung">Strichzeichnung</option>
+                                    <option value="Vintage-Poster">Vintage-Poster</option>
+                                </select>
+                            </div>
+                            <button id="regenerate-image-btn">Neu generieren</button>
+                        </div>
+                        <div class="action-card"><h3>Tools</h3><button id="fact-check-btn" class="btn-secondary">Faktencheck für markierten Text</button><div id="fact-check-result"></div></div>
+                        <details class="action-card"><summary>WordPress-Integration</summary><div class="form-group"><label for="wp-url">WordPress URL</label><input type="url" id="wp-url" placeholder="https://beispiel.de"></div><div class="form-group"><label for="wp-user">Benutzername</label><input type="text" id="wp-user" placeholder="admin"></div><div class="form-group"><label for="wp-password">Anwendungs-Passwort</label><div class="password-wrapper"><input type="password" id="wp-password" autocomplete="new-password"><button id="wp-show-password" class="btn-secondary btn-small" title="Passwort anzeigen">👁️</button></div></div><div class="form-group" style="margin-top: -0.75rem; margin-bottom: 1rem;"><label class="small-checkbox-label"><input type="checkbox" id="wp-save-password">Passwort speichern (unsicher)</label></div><button id="wp-test-btn" class="btn-secondary">Verbindung testen</button><div id="wp-connection-status" style="margin-top: 1rem;"></div><hr style="border-color: var(--border-color); margin: 1rem 0;"><div class="form-group"><label for="wp-post-status">Status</label><select id="wp-post-status"><option value="draft">Entwurf</option><option value="publish">Veröffentlichen</option><option value="pending">Zur Überprüfung</option></select></div><div class="toggle-group" style="grid-template-columns: 1fr;"><label for="wp-upload-image"><span>Titelbild hochladen</span><span class="switch"><input type="checkbox" id="wp-upload-image" checked><span class="slider"></span></span></label><label for="wp-use-gutenberg"><span>Gutenberg-Blöcke</span><span class="switch"><input type="checkbox" id="wp-use-gutenberg" checked><span class="slider"></span></span></label><label for="wp-use-rank-math"><span>Rank Math SEO</span><span class="switch"><input type="checkbox" id="wp-use-rank-math"><span class="slider"></span></span></label><label for="wp-include-schema"><span>Schema einbetten</span><span class="switch"><input type="checkbox" id="wp-include-schema"><span class="slider"></span></span></label></div><div class="form-group"><label for="wp-categories">Kategorie-IDs (kommagetrennt)</label><input type="text" id="wp-categories" placeholder="z.B. 1, 5, 12"></div><div class="form-group"><label for="wp-tags">Schlagwörter (kommagetrennt)</label><input type="text" id="wp-tags" placeholder="z.B. KI, SEO, Marketing"></div><button id="wp-upload-btn" disabled>Nach WordPress hochladen</button><div id="wp-upload-status" style="margin-top: 1rem;"></div></details>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+    
+    <!-- Hidden container for PDF rendering -->
+    <div id="result">
+        <img id="result-image" src="" alt="">
+        <h1 id="result-title"></h1>
+        <div class="meta">
+            <span>Sprache: <span id="result-lang"></span></span> |
+            <span>Wörter: <span id="result-words"></span></span>
+        </div>
+        <hr>
+        <div id="result-post"></div>
+        <div id="result-links"></div>
+    </div>
+    
+    <!-- Modals -->
+    <div id="login-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Login</h2>
+                <button class="close-modal-btn" title="Schließen">&times;</button>
+            </div>
+            <form id="login-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="login-email">E-Mail</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Passwort</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit">Einloggen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="signup-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Konto erstellen</h2>
+                <button class="close-modal-btn" title="Schließen">&times;</button>
+            </div>
+            <form id="signup-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="signup-email">E-Mail</label>
+                        <input type="email" id="signup-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-password">Passwort</label>
+                        <input type="password" id="signup-password" required>
+                    </div>
+                     <div class="form-group">
+                        <label for="signup-password-confirm">Passwort bestätigen</label>
+                        <input type="password" id="signup-password-confirm" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit">Registrieren</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="pricing-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Pläne & Preise</h2>
+                <button class="close-modal-btn" title="Schließen">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="pricing-grid">
+                    <div class="pricing-card">
+                        <h3>Free</h3>
+                        <p class="price">€0<span>/Monat</span></p>
+                        <p class="description">Perfekt, um die Grundlagen unserer Plattform auszuprobieren.</p>
+                        <ul>
+                            <li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 4.264a.5.5 0 0 1 .708.708l-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L5 11.293z"/></svg> 5 Artikel-Analysen / Monat</li>
+                            <li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 4.264a.5.5 0 0 1 .708.708l-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L5 11.293z"/></svg> Artikel bis 1500 Wörter</li>
+                             <li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 4.264a.5.5 0 0 1 .708.708l-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L5 11.293z"/></svg> Standard-Support</li>
+                        </ul>
+                        <button class="btn-secondary">Aktueller Plan</button>
+                    </div>
+                    <div class="pricing-card highlight">
+                         <h3>Pro</h3>
+                        <p class="price">€29<span>/Monat</span></p>
+                        <p class="description">Für Content-Ersteller und SEOs, die mehr Leistung benötigen.</p>
+                         <ul>
+                            <li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 4.264a.5.5 0 0 1 .708.708l-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L5 11.293z"/></svg> Unlimitierte Artikel-Analysen</li>
+                            <li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 4.264a.5.5 0 0 1 .708.708l-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L5 11.293z"/></svg> Ausführliche Artikel (2000+)</li>
+                            <li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 4.264a.5.5 0 0 1 .708.708l-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L5 11.293z"/></svg> <strong>Video-Generierung</strong></li>
+                            <li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 4.264a.5.5 0 0 1 .708.708l-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L5 11.293z"/></svg> Erweiterte Optimierungen</li>
+                             <li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 4.264a.5.5 0 0 1 .708.708l-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L5 11.293z"/></svg> Priority-Support</li>
+                        </ul>
+                        <button>Upgrade auf Pro</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="layout-editor-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="layout-editor-title">Layout bearbeiten</h2>
+                <button id="close-layout-modal-btn" title="Schließen">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="layout-id-input">
+                <div class="form-group">
+                    <label for="layout-name-input">Layout-Name</label>
+                    <input type="text" id="layout-name-input" placeholder="z.B. Workbook Vorlage">
+                </div>
+                <div class="form-group">
+                    <label for="layout-html-input">HTML-Vorlage</label>
+                    <textarea id="layout-html-input" rows="15" placeholder="Fügen Sie hier Ihr HTML ein..."></textarea>
+                    <small>Platzhalter: <code>{{TITLE}}</code>, <code>{{LANG}}</code>, <code>{{ARTICLE_HTML}}</code>, <code>{{IMAGE_URL}}</code>, <code>{{IMAGE_ALT}}</code>, <code>{{IMAGE_HTML}}</code>, <code>{{WORD_COUNT}}</code>, <code>{{AUTHOR_NAME}}</code></small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-layout-btn">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="prompt-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Generierungs-Prompt</h2>
+                <button id="close-prompt-modal-btn" title="Schließen">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Dies ist der exakte Prompt, der an die KI gesendet wird, um den Artikel zu generieren. Sie können ihn kopieren, um ihn in anderen Tools zu verwenden.</p>
+                <pre id="prompt-content"></pre>
+            </div>
+            <div class="modal-footer">
+                 <button id="copy-prompt-btn" class="btn-secondary">Prompt kopieren</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
