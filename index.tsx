@@ -1,6 +1,8 @@
 // @ts-ignore
 import { GoogleGenerativeAI } from '@google/generative-ai';
 // @ts-ignore
+import { createClient } from '@supabase/supabase-js';
+// @ts-ignore
 import { jsPDF } from 'jspdf';
 // @ts-ignore
 import html2canvas from 'html2canvas';
@@ -84,6 +86,67 @@ type WordPressPost = {
     tags?: number[];
     featured_media?: number;
     meta?: Record<string, any>;
+};
+
+// --- SUPABASE DATABASE TYPES --- //
+type Database = {
+    public: {
+        Tables: {
+            posts: {
+                Row: {
+                    id: string;
+                    created_at: string;
+                    updated_at: string;
+                    title: string;
+                    content: string;
+                    html_content: string;
+                    meta_title: string | null;
+                    meta_description: string | null;
+                    permalink: string | null;
+                    inputs: Record<string, any> | null;
+                    schema: Record<string, any> | null;
+                    image_url: string | null;
+                    user_id: string | null;
+                };
+                Insert: {
+                    id?: string;
+                    created_at?: string;
+                    updated_at?: string;
+                    title: string;
+                    content: string;
+                    html_content: string;
+                    meta_title?: string | null;
+                    meta_description?: string | null;
+                    permalink?: string | null;
+                    inputs?: Record<string, any> | null;
+                    schema?: Record<string, any> | null;
+                    image_url?: string | null;
+                    user_id?: string | null;
+                };
+                Update: {
+                    id?: string;
+                    created_at?: string;
+                    updated_at?: string;
+                    title?: string;
+                    content?: string;
+                    html_content?: string;
+                    meta_title?: string | null;
+                    meta_description?: string | null;
+                    permalink?: string | null;
+                    inputs?: Record<string, any> | null;
+                    schema?: Record<string, any> | null;
+                    image_url?: string | null;
+                    user_id?: string | null;
+                };
+            };
+        };
+    };
+};
+
+type SEOAnalysis = {
+    score: number;
+    keywords: string[];
+    readability: string;
 };
 
 // --- NANO BANANA GEMINI CLIENT FÜR BILDGENERIERUNG --- //
@@ -488,15 +551,26 @@ const WORDPRESS_API_URL = process.env.WORDPRESS_API_URL;
 const WORDPRESS_USERNAME = process.env.WORDPRESS_USERNAME;
 const WORDPRESS_APP_PASSWORD = process.env.WORDPRESS_APP_PASSWORD;
 
+// Supabase Configuration
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 // Passwort-Schutz initialisieren
 const passwordProtection = new PasswordProtection();
 
 // Clients initialisieren
 const mediaClient = NANO_BANANA_API_KEY ? new NanoBananaClient(NANO_BANANA_API_KEY) : null;
-const wordpressClient = (WORDPRESS_API_URL && WORDPRESS_USERNAME && WORDPRESS_APP_PASSWORD) 
-    ? new WordPressIntegration(WORDPRESS_API_URL, WORDPRESS_USERNAME, WORDPRESS_APP_PASSWORD) 
+const wordpressClient = (WORDPRESS_API_URL && WORDPRESS_USERNAME && WORDPRESS_APP_PASSWORD)
+    ? new WordPressIntegration(WORDPRESS_API_URL, WORDPRESS_USERNAME, WORDPRESS_APP_PASSWORD)
     : null;
 const templateManager = new TemplateManager();
+
+// Supabase Client initialisieren
+const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+console.log('🗄️ Supabase:', supabase ? 'Verbunden' : 'Nicht konfiguriert');
 
 // --- NEUE FUNKTIONEN FÜR ERWEITERTE FEATURES --- //
 
@@ -868,6 +942,13 @@ function initializeApp() {
             downloadPdfBtn.addEventListener('click', () => exportAsPDF());
         }
 
+        // Supabase Save Button
+        const saveToSupabaseBtn = document.getElementById('save-to-supabase-btn');
+        if (saveToSupabaseBtn) {
+            saveToSupabaseBtn.addEventListener('click', () => saveToSupabase());
+            console.log('✅ Supabase Button Event Listener hinzugefügt');
+        }
+
         // Modal Close Buttons
         const closeModalBtns = document.querySelectorAll('.close-modal-btn');
         closeModalBtns.forEach(btn => {
@@ -960,6 +1041,26 @@ Formatiere den Artikel in HTML mit semantischen Tags (h1, h2, h3, p, ul, ol, etc
             // Scrolle zum Output
             outputContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+
+        // Speichere generierten Content für Supabase Export
+        const turndownService = new TurndownService();
+        const markdownContent = turndownService.turndown(generatedText);
+
+        currentGeneratedPost = {
+            title: topic,
+            content: markdownContent,
+            htmlContent: generatedText,
+            inputs: {
+                topic,
+                targetLocation,
+                language,
+                length,
+                tone,
+                structure
+            }
+        };
+
+        console.log('📝 Content für Supabase-Export vorbereitet');
 
         // Zeige Output-Screen falls versteckt
         const outputScreen = document.getElementById('output-screen');
@@ -1119,6 +1220,104 @@ function exportAsPDF() {
         hideLoader();
         console.error("Export als PDF fehlgeschlagen:", error);
         showError(`PDF-Export fehlgeschlagen: ${error.message || error}`);
+    }
+}
+
+// --- SUPABASE INTEGRATION --- //
+
+// Globale Variable für den aktuell generierten Content
+let currentGeneratedPost: {
+    title: string;
+    content: string;
+    htmlContent: string;
+    inputs: Record<string, any>;
+} | null = null;
+
+async function saveToSupabase() {
+    if (!supabase) {
+        showError('Supabase ist nicht konfiguriert! Bitte setzen Sie VITE_SUPABASE_URL und VITE_SUPABASE_ANON_KEY in der .env.local Datei.');
+        return;
+    }
+
+    if (!currentGeneratedPost) {
+        showError('Kein generierter Content vorhanden zum Speichern!');
+        return;
+    }
+
+    try {
+        showLoader('Speichere in Supabase Datenbank...');
+
+        // Erstelle den Post für Supabase
+        const postData: Database['public']['Tables']['posts']['Insert'] = {
+            title: currentGeneratedPost.title,
+            content: currentGeneratedPost.content,
+            html_content: currentGeneratedPost.htmlContent,
+            meta_title: currentGeneratedPost.title,
+            meta_description: currentGeneratedPost.content.substring(0, 160),
+            permalink: currentGeneratedPost.title.toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, ''),
+            inputs: currentGeneratedPost.inputs,
+            schema: null,
+            image_url: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        // Speichere in Supabase
+        const { data, error } = await supabase
+            .from('posts')
+            .insert(postData)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Supabase Error:', error);
+            throw new Error(error.message);
+        }
+
+        console.log('✅ Post in Supabase gespeichert:', data);
+
+        hideLoader();
+        showSuccess(`Content erfolgreich in Datenbank gespeichert! ID: ${data.id.substring(0, 8)}...`);
+
+    } catch (error: any) {
+        hideLoader();
+        console.error('Fehler beim Speichern in Supabase:', error);
+        showError(`Speichern fehlgeschlagen: ${error.message || error}`);
+    }
+}
+
+async function loadPostsFromSupabase() {
+    if (!supabase) {
+        showError('Supabase ist nicht konfiguriert!');
+        return;
+    }
+
+    try {
+        showLoader('Lade Posts aus Datenbank...');
+
+        const { data, error } = await supabase
+            .from('posts')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        hideLoader();
+        console.log('📚 Geladene Posts:', data);
+        showSuccess(`${data?.length || 0} Posts aus Datenbank geladen!`);
+
+        return data;
+
+    } catch (error: any) {
+        hideLoader();
+        console.error('Fehler beim Laden von Supabase:', error);
+        showError(`Laden fehlgeschlagen: ${error.message || error}`);
+        return [];
     }
 }
 

@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
         'process.env.ENABLE_WORDPRESS_EXPORT': JSON.stringify((process.env.ENABLE_WORDPRESS_EXPORT || env.ENABLE_WORDPRESS_EXPORT) === 'true'),
         'process.env.ENABLE_PASSWORD_PROTECTION': JSON.stringify((process.env.ENABLE_PASSWORD_PROTECTION || env.ENABLE_PASSWORD_PROTECTION) === 'true')
       },
+      // Supabase uses import.meta.env.VITE_ prefix automatically, no need to define here
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
