@@ -1,4 +1,6 @@
 // @ts-ignore
+import { GoogleGenerativeAI } from '@google/generative-ai';
+// @ts-ignore
 import { jsPDF } from 'jspdf';
 // @ts-ignore
 import html2canvas from 'html2canvas';
@@ -8,8 +10,6 @@ import { fabric } from 'fabric';
 import DOMPurify from 'dompurify';
 // @ts-ignore
 import TurndownService from 'turndown';
-
-// ENTFERNEN SIE ALLE mp3-Referenzen falls vorhanden
 
 // --- KONFIGURATION FÜR API-WECHSEL --- //
 const USE_OPENROUTER = process.env.USE_OPENROUTER === 'true';
@@ -608,22 +608,169 @@ function dataURLtoBlob(dataURL: string): Blob {
 }
 
 function showSuccess(message: string) {
-    // Implementierung für Erfolgs-Nachricht
     console.log('SUCCESS:', message);
+    showToast(message, 'success');
 }
 
 function showError(message: string) {
-    // Implementierung für Fehler-Nachricht
     console.error('ERROR:', message);
+    showToast(message, 'error');
+}
+
+function showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
+    // Entferne alten Toast falls vorhanden
+    const existingToast = document.getElementById('toast-notification');
+    if (existingToast) {
+        existingToast.remove();
+    }
+
+    // Erstelle Toast Element
+    const toast = document.createElement('div');
+    toast.id = 'toast-notification';
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        font-size: 14px;
+        z-index: 10001;
+        animation: slideIn 0.3s ease-out;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        max-width: 400px;
+        word-wrap: break-word;
+    `;
+
+    // Setze Farbe basierend auf Typ
+    if (type === 'success') {
+        toast.style.backgroundColor = '#4caf50';
+    } else if (type === 'error') {
+        toast.style.backgroundColor = '#f44336';
+    } else {
+        toast.style.backgroundColor = '#2196F3';
+    }
+
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // Animation hinzufügen
+    if (!document.getElementById('toast-animation-style')) {
+        const style = document.createElement('style');
+        style.id = 'toast-animation-style';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Auto-remove nach 5 Sekunden
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
 }
 
 function showLoader(message: string) {
-    // Implementierung für Loader
     console.log('LOADING:', message);
+
+    // Entferne alten Loader falls vorhanden
+    hideLoader();
+
+    // Erstelle Loader Overlay
+    const loaderOverlay = document.createElement('div');
+    loaderOverlay.id = 'loader-overlay';
+    loaderOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        backdrop-filter: blur(4px);
+    `;
+
+    // Erstelle Loader Container
+    const loaderContainer = document.createElement('div');
+    loaderContainer.style.cssText = `
+        background: white;
+        padding: 32px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        max-width: 90%;
+    `;
+
+    // Erstelle Spinner
+    const spinner = document.createElement('div');
+    spinner.style.cssText = `
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 16px auto;
+    `;
+
+    // Spinner Animation
+    if (!document.getElementById('spinner-animation-style')) {
+        const style = document.createElement('style');
+        style.id = 'spinner-animation-style';
+        style.textContent = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Erstelle Text
+    const loaderText = document.createElement('p');
+    loaderText.style.cssText = `
+        margin: 0;
+        font-size: 16px;
+        font-weight: 500;
+        color: #333;
+    `;
+    loaderText.textContent = message;
+
+    loaderContainer.appendChild(spinner);
+    loaderContainer.appendChild(loaderText);
+    loaderOverlay.appendChild(loaderContainer);
+    document.body.appendChild(loaderOverlay);
 }
 
 function hideLoader() {
-    // Implementierung für Loader verstecken
+    const loader = document.getElementById('loader-overlay');
+    if (loader) {
+        loader.remove();
+    }
     console.log('LOADING: Complete');
 }
 
@@ -677,6 +824,71 @@ function initializeApp() {
             });
         });
         
+        // Theme Toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('light-mode');
+                localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+            });
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+        }
+
+        // Back Button
+        const backBtn = document.getElementById('back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                const outputScreen = document.getElementById('output-screen');
+                const inputScreen = document.getElementById('input-screen');
+                if (outputScreen && inputScreen) {
+                    outputScreen.style.display = 'none';
+                    inputScreen.style.display = 'flex';
+                }
+            });
+        }
+
+        // Export Buttons
+        const downloadMdBtn = document.getElementById('download-md-btn');
+        if (downloadMdBtn) {
+            downloadMdBtn.addEventListener('click', () => exportAsMarkdown());
+        }
+
+        const downloadHtmlBtn = document.getElementById('download-html-btn');
+        if (downloadHtmlBtn) {
+            downloadHtmlBtn.addEventListener('click', () => exportAsHTML());
+        }
+
+        const downloadPdfBtn = document.getElementById('download-pdf-btn');
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', () => exportAsPDF());
+        }
+
+        // Modal Close Buttons
+        const closeModalBtns = document.querySelectorAll('.close-modal-btn');
+        closeModalBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modal = (e.target as HTMLElement).closest('.modal-overlay');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+
+        // Close modals on overlay click
+        const modals = document.querySelectorAll('.modal-overlay');
+        modals.forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    (modal as HTMLElement).style.display = 'none';
+                }
+            });
+        });
+
         console.log('✅ Event Listeners erfolgreich initialisiert!');
     } catch (error) {
         console.error('❌ Fehler bei Event Listener Initialisierung:', error);
@@ -684,83 +896,229 @@ function initializeApp() {
 }
 
 async function handleGenerate() {
-    try {
-        console.log('🚀 Generate Button clicked!');
-        
-        const topic = (document.getElementById('topic') as HTMLInputElement)?.value;
-        if (!topic) {
-            alert('Bitte geben Sie ein Thema ein!');
-            return;
-        }
-        
-        alert(`Generiere Content für: ${topic}`);
-        console.log('Content wird generiert für:', topic);
-        
-    } catch (error) {
-        console.error('❌ Fehler bei handleGenerate:', error);
-        alert('Fehler bei der Content-Generierung!');
-    }
-}
-
-// Theme Toggle
-const themeToggle = document.getElementById('theme-toggle');
-if (themeToggle) {
-    themeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('light-mode');
-        localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-    });
-}
-
-// Load saved theme
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme === 'light') {
-    document.body.classList.add('light-mode');
-}
-
-console.log('✅ Event Listeners initialisiert!');
-}
-
-async function handleGenerate() {
     const topic = (document.getElementById('topic') as HTMLInputElement)?.value;
     const targetLocation = (document.getElementById('target-location') as HTMLInputElement)?.value;
-    
+    const language = (document.getElementById('language') as HTMLSelectElement)?.value || 'Deutsch';
+    const length = (document.getElementById('length') as HTMLSelectElement)?.value || 'ca. 1000 Wörter';
+    const tone = (document.getElementById('tone') as HTMLSelectElement)?.value || 'Professionell';
+    const structure = (document.getElementById('structure') as HTMLSelectElement)?.value || 'Standard-Blogbeitrag';
+
     if (!topic) {
         showError('Bitte geben Sie ein Thema ein!');
         return;
     }
-    
+
     if (!GEMINI_API_KEY) {
-        showError('GEMINI_API_KEY ist nicht konfiguriert!');
+        showError('GEMINI_API_KEY ist nicht konfiguriert! Bitte setzen Sie die API-Key in der .env.local Datei.');
         return;
     }
-    
+
     try {
-        showLoader('Generiere Content...');
-        
-        // Hier würde die eigentliche AI-Generierung stattfinden
-        const prompt = `Schreibe einen ausführlichen Artikel über: ${topic}${targetLocation ? ` für die Region ${targetLocation}` : ''}`;
-        
-        // Placeholder für AI-Generierung
-        console.log('Generating with prompt:', prompt);
-        
-        // Simuliere AI-Response
-        setTimeout(() => {
-            hideLoader();
-            showSuccess('Content erfolgreich generiert!');
-            
-            // Zeige Ergebnis
-            const outputContent = document.querySelector('.output-content');
-            if (outputContent) {
-                outputContent.innerHTML = `
-                    <h1>${topic}</h1>
-                    <p>Dies ist ein Beispiel-Artikel über ${topic}.</p>
-                    <p>Der Content wurde erfolgreich generiert!</p>
-                `;
-            }
-        }, 2000);
-        
-    } catch (error) {
+        showLoader('Generiere Content mit Google Gemini AI...');
+
+        // Detaillierten Prompt erstellen
+        const prompt = `Schreibe einen ${structure} über das Thema: ${topic}
+${targetLocation ? `Zielregion: ${targetLocation}` : ''}
+
+Anforderungen:
+- Sprache: ${language}
+- Länge: ${length}
+- Tonfall: ${tone}
+- Struktur: ${structure}
+
+Bitte erstelle einen gut strukturierten, informativen Artikel mit:
+- Ansprechender Einleitung
+- Übersichtlicher Gliederung mit Zwischenüberschriften
+- Informativen Absätzen
+- Praktischen Beispielen wo möglich
+- Klarem Fazit
+
+Formatiere den Artikel in HTML mit semantischen Tags (h1, h2, h3, p, ul, ol, etc.).`;
+
+        console.log('🤖 Sende Anfrage an Gemini API...');
+
+        // Gemini API initialisieren und aufrufen
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const generatedText = response.text();
+
+        console.log('✅ Content erfolgreich generiert!');
+
         hideLoader();
-        showError('Fehler bei der Content-Generierung: ' + error);
+        showSuccess('Content erfolgreich generiert!');
+
+        // Zeige Ergebnis mit DOMPurify für Sicherheit
+        const outputContent = document.querySelector('.output-content');
+        if (outputContent) {
+            // Sanitize HTML to prevent XSS
+            const sanitizedHTML = DOMPurify.sanitize(generatedText);
+            outputContent.innerHTML = sanitizedHTML;
+
+            // Scrolle zum Output
+            outputContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Zeige Output-Screen falls versteckt
+        const outputScreen = document.getElementById('output-screen');
+        const inputScreen = document.getElementById('input-screen');
+        if (outputScreen && inputScreen) {
+            inputScreen.style.display = 'none';
+            outputScreen.style.display = 'flex';
+        }
+
+    } catch (error: any) {
+        hideLoader();
+        console.error('❌ Fehler bei der Generierung:', error);
+        showError(`Fehler bei der Content-Generierung: ${error.message || error}`);
     }
 }
+
+// --- EXPORT FUNKTIONEN --- //
+
+function exportAsMarkdown() {
+    try {
+        const outputContent = document.querySelector(".output-content");
+        if (!outputContent) {
+            showError("Kein Content zum Exportieren vorhanden!");
+            return;
+        }
+
+        // Konvertiere HTML zu Markdown mit TurndownService
+        const turndownService = new TurndownService({
+            headingStyle: "atx",
+            codeBlockStyle: "fenced"
+        });
+
+        const markdown = turndownService.turndown(outputContent.innerHTML);
+
+        // Download erstellen
+        const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `artikel-${Date.now()}.md`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showSuccess("Markdown-Datei erfolgreich heruntergeladen!");
+    } catch (error: any) {
+        console.error("Export als Markdown fehlgeschlagen:", error);
+        showError(`Export fehlgeschlagen: ${error.message || error}`);
+    }
+}
+
+function exportAsHTML() {
+    try {
+        const outputContent = document.querySelector(".output-content");
+        if (!outputContent) {
+            showError("Kein Content zum Exportieren vorhanden!");
+            return;
+        }
+
+        // Erstelle vollständiges HTML-Dokument
+        const htmlContent = `<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generierter Artikel</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+        h1 { font-size: 2.5em; }
+        h2 { font-size: 2em; }
+        h3 { font-size: 1.5em; }
+        p { margin-bottom: 1em; }
+        ul, ol { margin-bottom: 1em; padding-left: 2em; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
+        pre { background: #f4f4f4; padding: 1em; border-radius: 6px; overflow-x: auto; }
+        img { max-width: 100%; height: auto; }
+    </style>
+</head>
+<body>
+${outputContent.innerHTML}
+</body>
+</html>`;
+
+        // Download erstellen
+        const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `artikel-${Date.now()}.html`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showSuccess("HTML-Datei erfolgreich heruntergeladen!");
+    } catch (error: any) {
+        console.error("Export als HTML fehlgeschlagen:", error);
+        showError(`Export fehlgeschlagen: ${error.message || error}`);
+    }
+}
+
+function exportAsPDF() {
+    try {
+        const outputContent = document.querySelector(".output-content");
+        if (!outputContent) {
+            showError("Kein Content zum Exportieren vorhanden!");
+            return;
+        }
+
+        showLoader("Erstelle PDF...");
+
+        // Verwende jsPDF
+        const pdf = new jsPDF("p", "mm", "a4");
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 20;
+        const maxWidth = pageWidth - (margin * 2);
+
+        // Konvertiere HTML zu Text (einfache Version)
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = outputContent.innerHTML;
+        const text = tempDiv.innerText || tempDiv.textContent || "";
+
+        // Füge Text zum PDF hinzu
+        pdf.setFontSize(12);
+        const lines = pdf.splitTextToSize(text, maxWidth);
+
+        let y = margin;
+        lines.forEach((line: string) => {
+            if (y > pageHeight - margin) {
+                pdf.addPage();
+                y = margin;
+            }
+            pdf.text(line, margin, y);
+            y += 7;
+        });
+
+        // Download PDF
+        pdf.save(`artikel-${Date.now()}.pdf`);
+
+        hideLoader();
+        showSuccess("PDF erfolgreich erstellt!");
+    } catch (error: any) {
+        hideLoader();
+        console.error("Export als PDF fehlgeschlagen:", error);
+        showError(`PDF-Export fehlgeschlagen: ${error.message || error}`);
+    }
+}
+
