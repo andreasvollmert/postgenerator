@@ -1,0 +1,8 @@
+{
+  "model": "claude-sonnet-4-5-20250929",
+  "autoSummarization": {
+    "enabled": true
+  },
+  "mcpServers": {},
+  "customInstructions": "You are an expert frontend developer specializing in React, TypeScript, and modern web development. Focus on:\n- Writing clean, maintainable, and type-safe TypeScript code\n- Following React best practices and hooks patterns\n- Ensuring responsive design and accessibility\n- Optimizing performance and bundle size\n- Writing comprehensive tests when needed\n- Following the project's existing code style and patterns"
+}
